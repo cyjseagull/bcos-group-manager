@@ -1,2 +1,2 @@
-# bcos-multi-group
-multi group implementation for FISCO BCOS 3.0
+# bcos-group-manager
+multi group manager implementation for FISCO BCOS 3.0
