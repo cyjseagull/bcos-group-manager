@@ -57,7 +57,7 @@ jobs:
         if: runner.os == 'Linux'
         run: CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake . -DTESTS=ON
       - name: compile
-        run: make -j4 && make tar
+        run: make -j4
       - name: run test
         run: CTEST_OUTPUT_ON_FAILURE=TRUE make test
   build_with_gcc:
@@ -89,7 +89,7 @@ jobs:
           toolchain: nightly-2021-06-17
           override: true
       - name: install Ubuntu dependencies
-        run: sudo apt install -y libzstd-dev git curl build-essential cmake ccache
+        run: sudo apt install -y libzstd-dev git curl build-essential cmake ccache lcov
       - name: configure
         run: cmake . -DTESTS=ON -DCOVERAGE=ON -DHUNTER_CONFIGURATION_TYPES=Debug
       - name: compile
@@ -127,7 +127,7 @@ jobs:
       - name: install Ubuntu dependencies
         run: sudo apt-get install -y git curl build-essential cmake ccache lcov libzstd-dev
       - name: configure
-        run: cmake . -DTESTS=OFF
+        run: cmake . -DTESTS=ON
       - name: compile
         run: make -j4
       - name: run test
@@ -174,5 +174,4 @@ jobs:
           # mkdir -p build && cd build
           cmake3 . -DTESTS=ON
           make -j4
-          make tar
           CTEST_OUTPUT_ON_FAILURE=TRUE make test

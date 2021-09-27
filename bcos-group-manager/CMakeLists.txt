@@ -1,0 +1,9 @@
+file(GLOB SRC_LIST "*.cpp")
+file(GLOB HEADERS "*.h")
+aux_source_directory(. SRC_LIST)
+aux_source_directory(./config SRC_LIST)
+aux_source_directory(./storage SRC_LIST)
+
+add_library(${BCOS_GROUP_MANAGER_TARGET} ${SRC_LIST} ${HEADERS})
+target_compile_options(${BCOS_GROUP_MANAGER_TARGET} PRIVATE -Wno-error -Wno-unused-variable)
+target_link_libraries(${BCOS_GROUP_MANAGER_TARGET} PUBLIC bcos-framework::storage bcos-tars-protocol::protocol-tars)

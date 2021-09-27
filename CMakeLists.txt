@@ -57,9 +57,12 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # install dependencies
 include(InstallBcosFrameworkDependencies)
-# add tarscpp dependencies
-hunter_add_package(tarscpp)
-set(BCOS_GROUP_MANAGER_TARGET "bcos-group-manager")
+include(InstallBcosTarsProtocolDependencies)
+# copy .clang-format into the project path
+include(CopyClangFormat)
+
+set(BCOS_GROUP_MANAGER_TARGET "group-manager")
+add_subdirectory(bcos-group-manager)
 
 if (TESTS)
     # fetch bcos-test    
@@ -67,6 +70,16 @@ if (TESTS)
     set(CTEST_OUTPUT_ON_FAILURE TRUE)
     add_subdirectory(tests)
 endif()
+
+include(InstallConfig)
+install(
+    TARGETS ${BCOS_GROUP_MANAGER_TARGET}
+    EXPORT "${TARGETS_EXPORT_NAME}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
 
 # for doxygen
 include(BuildDocs)
