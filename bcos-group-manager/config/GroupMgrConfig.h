@@ -35,11 +35,12 @@ public:
     using Ptr = std::shared_ptr<GroupMgrConfig>;
     GroupMgrConfig(std::shared_ptr<AdminRegProxy> _nodeManager,
         ChainInfoFactory::Ptr _chainInfoFactory, GroupInfoFactory::Ptr _groupInfoFactory,
-        ChainNodeInfoFactory::Ptr _nodeInfoFactory)
+        ChainNodeInfoFactory::Ptr _nodeInfoFactory, std::string const& _userName)
       : m_nodeManager(_nodeManager),
         m_chainInfoFactory(_chainInfoFactory),
         m_groupInfoFactory(_groupInfoFactory),
-        m_nodeInfoFactory(_nodeInfoFactory)
+        m_nodeInfoFactory(_nodeInfoFactory),
+        m_userName(_userName)
     {}
 
     std::shared_ptr<AdminRegProxy> nodeManager() { return m_nodeManager; }
@@ -48,6 +49,8 @@ public:
     GroupInfoFactory::Ptr groupInfoFactory() { return m_groupInfoFactory; }
     ChainNodeInfoFactory::Ptr nodeInfoFactory() { return m_nodeInfoFactory; }
 
+    std::string const& userName() const { return m_userName; }
+
 private:
     // tars admin registry client, used to deploy/start/stop the node
     std::shared_ptr<tars::AdminRegProxy> m_nodeManager;
@@ -55,6 +58,9 @@ private:
     ChainInfoFactory::Ptr m_chainInfoFactory;
     GroupInfoFactory::Ptr m_groupInfoFactory;
     ChainNodeInfoFactory::Ptr m_nodeInfoFactory;
+
+    // userName used to access the tarsAdminRegistry
+    std::string m_userName;
 };
 }  // namespace group
 }  // namespace bcos

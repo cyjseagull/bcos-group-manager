@@ -67,21 +67,22 @@ public:
         std::vector<std::string> const& _nodeList,
         std::function<void(Error::Ptr&&, std::vector<ChainNodeInfo::Ptr>&&)> _callback);
 
+    // insert the meta data
+    virtual void asyncSetGroupMetaData(
+        GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _callback);
+
+    // insert/update the group table
+    virtual void asyncSetGroupNodeInfos(
+        GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _callback);
+
 protected:
     // create the metadata table
     virtual void asyncCreateGroupMetaInfo(
-        GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _callback);
-    // insert the meta data
-    virtual void asyncSetGroupMetaData(
         GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _callback);
 
     // create group table
     virtual void asyncCreateGroupInfo(
         GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _callback);
-    // insert/update the group table
-    virtual void asyncSetGroupNodeInfos(
-        GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _callback);
-
     virtual std::string encodeDeployInfo(ChainNodeInfo::ServiceToDeployIpMap const& _deployInfo);
     virtual std::string encodeChainInfo(ChainInfo::Ptr _chainInfo);
     virtual ChainInfo::Ptr decodeChainInfo(
@@ -91,14 +92,7 @@ protected:
     virtual void decodeGroupMetaInfo(GroupInfo::Ptr _groupInfo,
         std::vector<std::optional<bcos::storage::Entry>> const& _entries);
 
-    virtual void setNodeInfoEntry(bcos::storage::Entry& _entry, ChainNodeInfo::Ptr _nodeInfo)
-    {
-        auto deployInfo = encodeDeployInfo(_nodeInfo->deployInfo());
-        _entry.importFields({_nodeInfo->nodeName(),
-            boost::lexical_cast<std::string>((int32_t)_nodeInfo->nodeType()), std::move(deployInfo),
-            _nodeInfo->privateKey(), _nodeInfo->iniConfig(),
-            boost::lexical_cast<std::string>((int32_t)_nodeInfo->status())});
-    }
+    virtual void setNodeInfoEntry(bcos::storage::Entry& _entry, ChainNodeInfo::Ptr _nodeInfo);
 
 private:
     bcos::storage::StorageInterface::Ptr m_storage;

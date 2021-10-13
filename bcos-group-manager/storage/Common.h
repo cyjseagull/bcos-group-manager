@@ -33,6 +33,11 @@ DERIVE_BCOS_EXCEPTION(GroupManagerInitError);
 enum GroupMgrError
 {
     CreateGroupFailed = 4001,
+    GroupNotExists = 4002,
+    CreateNodeFailed = 4003,
+    ExpandGroupNodeFailed = 4004,
+    NodeNotExists = 4005,
+    OperationNotAllowed = 4006,
 };
 
 const std::string FIELD_SPLITTER = ",";

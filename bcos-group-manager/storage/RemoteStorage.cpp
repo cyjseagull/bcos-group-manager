@@ -28,6 +28,7 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/iostreams/device/back_inserter.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/set.hpp>
 
@@ -538,4 +539,13 @@ void RemoteStorage::asyncGetGroupMetaInfo(
             decodeGroupMetaInfo(_groupInfo, _entries);
             _callback(nullptr, _groupInfo);
         });
+}
+
+void RemoteStorage::setNodeInfoEntry(bcos::storage::Entry& _entry, ChainNodeInfo::Ptr _nodeInfo)
+{
+    auto deployInfo = encodeDeployInfo(_nodeInfo->deployInfo());
+    _entry.importFields(
+        {_nodeInfo->nodeName(), boost::lexical_cast<std::string>((uint32_t)_nodeInfo->nodeType()),
+            deployInfo, _nodeInfo->privateKey(), _nodeInfo->iniConfig(),
+            boost::lexical_cast<std::string>((int32_t)_nodeInfo->status())});
 }

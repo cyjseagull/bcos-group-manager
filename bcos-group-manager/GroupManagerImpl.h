@@ -19,8 +19,10 @@
  * @date 2021-09-16
  */
 #pragma once
+#include "bcos-group-manager/config/GroupMgrConfig.h"
+#include "bcos-group-manager/controller/NodeControllerInterface.h"
+#include "bcos-group-manager/storage/GroupInfoStorage.h"
 #include <bcos-framework/interfaces/multigroup/GroupManagerInterface.h>
-
 namespace bcos
 {
 namespace group
@@ -29,10 +31,14 @@ class GroupManagerImpl : public GroupManagerInterface
 {
 public:
     using Ptr = std::shared_ptr<GroupManagerImpl>;
-    GroupManagerImpl() = default;
+    GroupManagerImpl(NodeControllerInterface::Ptr _nodeController, GroupInfoStorage::Ptr _storage)
+      : m_nodeController(_nodeController), m_storage(_storage)
+    {}
     ~GroupManagerImpl() override {}
+
     void asyncCreateGroup(
         GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _callback) override;
+
     void asyncExpandGroupNode(std::string const& _chainID, std::string const& _groupID,
         ChainNodeInfo::Ptr _nodeInfo, std::function<void(Error::Ptr&&)> _callback) override;
     void asyncRemoveGroup(std::string const& _chainID, std::string const& _groupID,
@@ -48,17 +54,25 @@ public:
     void asyncStopNode(std::string const& _chainID, std::string const& _groupID,
         std::string const& _nodeName, std::function<void(Error::Ptr&&)> _callback) override;
     void asyncGetChainList(
-        std::function<void(Error::Ptr&&, std::vector<std::string>&&)> _onGetChainList) override;
+        std::function<void(Error::Ptr&&, std::set<std::string>&&)> _onGetChainList) override;
     void asyncGetGroupList(std::string _chainID,
-        std::function<void(Error::Ptr&&, std::vector<std::string>&&)> _onGetGroupList) override;
-    void asyncGetGroupInfoList(std::string _chainID,
-        std::function<void(Error::Ptr&&, std::vector<GroupInfo::Ptr>&&)> _onGetGroupListInfo)
-        override;
+        std::function<void(Error::Ptr&&, std::set<std::string>&&)> _onGetGroupList) override;
 
-    void asycnGetGroupInfo(std::string _chainID, std::string _groupID,
+    void asyncGetGroupInfo(std::string _chainID, std::string _groupID,
         std::function<void(Error::Ptr&&, GroupInfo::Ptr&&)> _onGetGroupInfo) override;
-    void asycnGetNodeInfo(std::string _chainID, std::string _groupID, std::string _nodeName,
+    void asyncGetNodeInfo(std::string _chainID, std::string _groupID, std::string _nodeName,
         std::function<void(Error::Ptr&&, ChainNodeInfo::Ptr&&)> _onGetNodeInfo) override;
+
+protected:
+    virtual void generateNodeInfos(
+        std::map<std::string, ChainNodeInfo::Ptr>& _nodeInfos, GroupInfo::Ptr _groupInfo);
+
+    virtual void recoverNode(std::string const& _chainID, std::string const& _groupID,
+        ChainNodeInfo::Ptr _nodeInfo, std::function<void(Error::Ptr&&)> _callback);
+
+private:
+    NodeControllerInterface::Ptr m_nodeController;
+    GroupInfoStorage::Ptr m_storage;
 };
 }  // namespace group
 }  // namespace bcos

@@ -20,13 +20,19 @@
  */
 #include "GroupInfoStorage.h"
 #include "Common.h"
+#include <bcos-framework/interfaces/rpc/RPCInterface.h>
 #include <bcos-framework/interfaces/storage/Common.h>
+#include <bcos-tars-protocol/GatewayServiceClient.h>
+#include <bcos-tars-protocol/RpcServiceClient.h>
+#include <boost/lexical_cast.hpp>
 #include <chrono>
 #include <future>
 
 using namespace bcos;
 using namespace bcos::group;
 using namespace bcos::protocol;
+using namespace bcos::rpc;
+
 // init the storage
 void GroupInfoStorage::init()
 {
@@ -201,19 +207,20 @@ void GroupInfoStorage::asyncGetGroupInfo(std::string const& _chainID, std::strin
         });
 }
 
-bool GroupInfoStorage::updateGroupCache(GroupInfo::Ptr _groupInfo)
+bool GroupInfoStorage::updateGroupCache(GroupInfo::Ptr _groupInfo, bool _enforce)
 {
+    UpgradableGuard l(x_groupInfos);
+    if (!_enforce)
     {
-        UpgradableGuard l(x_groupInfos);
         auto groupInfo =
             getGroupInfoFromCacheWithoutLock(_groupInfo->chainID(), _groupInfo->groupID());
         if (groupInfo)
         {
             return false;
         }
-        UpgradeGuard ul(l);
-        m_groupInfos[_groupInfo->chainID()][_groupInfo->groupID()] = _groupInfo;
     }
+    UpgradeGuard ul(l);
+    m_groupInfos[_groupInfo->chainID()][_groupInfo->groupID()] = _groupInfo;
     updateChainGroupList(_groupInfo->chainID(), _groupInfo->groupID());
     return true;
 }
@@ -238,6 +245,13 @@ void GroupInfoStorage::revertGroupCache(GroupInfo::Ptr _groupInfo)
             chainInfo->removeGroup(_groupInfo->groupID());
         }
     }
+}
+
+void GroupInfoStorage::revertGroupNodeCache(
+    std::string const& _chainID, std::string const& _groupID, ChainNodeInfo::Ptr _nodeInfo)
+{
+    auto groupInfo = getGroupInfoFromCache(_chainID, _groupID);
+    groupInfo->removeNodeInfo(_nodeInfo);
 }
 
 void GroupInfoStorage::updateChainGroupList(
@@ -273,7 +287,7 @@ void GroupInfoStorage::asyncGetNodeInfo(std::string const& _chainID, std::string
     std::string const& _nodeName, std::function<void(Error::Ptr&&, ChainNodeInfo::Ptr)> _onNodeInfo)
 {
     asyncGetGroupInfo(_chainID, _groupID,
-        [this, _onNodeInfo, _chainID, _groupID, _nodeName](
+        [_onNodeInfo, _chainID, _groupID, _nodeName](
             Error::Ptr&& _error, GroupInfo::Ptr&& _groupInfo) {
             if (_error)
             {
@@ -283,18 +297,17 @@ void GroupInfoStorage::asyncGetNodeInfo(std::string const& _chainID, std::string
                 _onNodeInfo(std::move(_error), nullptr);
                 return;
             }
-            // get the group information from the cache
-            auto groupInfo = getGroupInfoFromCache(_chainID, _groupID);
             _onNodeInfo(
-                nullptr, std::const_pointer_cast<ChainNodeInfo>(groupInfo->nodeInfo(_nodeName)));
+                nullptr, std::const_pointer_cast<ChainNodeInfo>(_groupInfo->nodeInfo(_nodeName)));
         });
 }
 
 void GroupInfoStorage::asyncInsertGroupInfo(
     GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _onInsertGroup)
 {
+    _groupInfo->setStatus((int32_t)GroupStatus::Creating);
     asyncGetGroupInfo(_groupInfo->chainID(), _groupInfo->groupID(),
-        [this, _groupInfo, _onInsertGroup](Error::Ptr&& _error, GroupInfo::Ptr&& _groupInfoRet) {
+        [this, _groupInfo, _onInsertGroup](Error::Ptr&&, GroupInfo::Ptr&& _groupInfoRet) {
             Error::Ptr error = nullptr;
             std::stringstream errorInfo;
             // the group already exists
@@ -330,17 +343,183 @@ void GroupInfoStorage::asyncInsertGroupInfo(
                                   << LOG_KV("code", _error->errorCode())
                                   << LOG_KV("msg", _error->errorMessage());
                         GROUP_LOG(ERROR) << errorInfo.str();
-                        // TODO: revert the cached info
                         revertGroupCache(_groupInfo);
                         _onInsertGroup(std::make_shared<Error>(
                             GroupMgrError::CreateGroupFailed, errorInfo.str()));
                         return;
                     }
+                    // TODO: asyncNotifyGroupInfo with callback
+                    asyncNotifyGroupInfo(_groupInfo, nullptr);
                     _onInsertGroup(nullptr);
                 });
         });
 }
 
+void GroupInfoStorage::asyncUpdateGroupInfo(
+    GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _onUpdate)
+{
+    asyncGetGroupInfo(_groupInfo->chainID(), _groupInfo->groupID(),
+        [this, _groupInfo, _onUpdate](Error::Ptr&& _error, GroupInfo::Ptr&& _groupInfoRet) {
+            // the group doesn't exist
+            if (!_groupInfoRet)
+            {
+                GROUP_LOG(ERROR) << LOG_DESC(
+                                        "asyncUpdateGroupInfo error for the group doesn't exists")
+                                 << LOG_KV("code", _error ? _error->errorCode() : 0)
+                                 << LOG_KV("msg", _error ? _error->errorMessage() : "");
+                _onUpdate(std::make_shared<Error>(GroupMgrError::GroupNotExists, "GroupNotExists"));
+                return;
+            }
+            // the group exists
+            m_remoteStorage->asyncSetGroupMetaData(_groupInfo, [this, _onUpdate, _groupInfo](
+                                                                   Error::Ptr&& _error) {
+                if (_error)
+                {
+                    GROUP_LOG(ERROR)
+                        << LOG_DESC("asyncUpdateGroupInfo error for update groupMetaData failed")
+                        << LOG_KV("code", _error->errorCode())
+                        << LOG_KV("msg", _error->errorMessage()) << printGroupInfo(_groupInfo);
+                    _onUpdate(std::move(_error));
+                    return;
+                }
+                // set the group metadata success, set the nodeInfos then
+                m_remoteStorage->asyncSetGroupNodeInfos(_groupInfo, [this, _groupInfo, _onUpdate](
+                                                                        Error::Ptr&& _error) {
+                    if (_error)
+                    {
+                        GROUP_LOG(ERROR)
+                            << LOG_DESC("asyncUpdateGroupInfo error for update node infos failed")
+                            << LOG_KV("code", _error->errorCode())
+                            << LOG_KV("msg", _error->errorMessage());
+                        _onUpdate(std::move(_error));
+                        return;
+                    }
+                    // update the group cache
+                    updateGroupCache(_groupInfo, true);
+                    // TODO: asyncNotifyGroupInfo with callback
+                    asyncNotifyGroupInfo(_groupInfo, nullptr);
+                    _onUpdate(nullptr);
+                });
+            });
+        });
+}
+
 void GroupInfoStorage::asyncInsertNodeInfo(std::string const& _chainID, std::string const& _groupID,
     ChainNodeInfo::Ptr _nodeInfo, std::function<void(Error::Ptr&&)> _onInsertNode)
-{}
+{
+    asyncGetNodeInfo(_chainID, _groupID, _nodeInfo->nodeName(),
+        [this, _chainID, _groupID, _nodeInfo, _onInsertNode](
+            Error::Ptr&&, ChainNodeInfo::Ptr _nodeInfoRet) {
+            // already exist the conflicted node
+            Error::Ptr error = nullptr;
+            std::stringstream errorInfo;
+            if (_nodeInfoRet)
+            {
+                errorInfo << LOG_DESC("node already exists, existed node info: ")
+                          << printNodeInfo(_nodeInfoRet);
+                error = std::make_shared<Error>(GroupMgrError::CreateGroupFailed, errorInfo.str());
+                _onInsertNode(std::move(error));
+                return;
+            }
+            // try to update the nodeInfo
+            auto groupInfo = getGroupInfoFromCache(_chainID, _groupID);
+            if (!groupInfo)
+            {
+                errorInfo << LOG_DESC("The group of the node belongs to doesn't exist");
+                error = std::make_shared<Error>(GroupMgrError::CreateGroupFailed, errorInfo.str());
+                _onInsertNode(std::move(error));
+                return;
+            }
+            // add the nodeInfo to the cache firstly
+            auto ret = groupInfo->appendNodeInfo(_nodeInfo);
+            if (!ret)
+            {
+                errorInfo << LOG_DESC("node already exists");
+                error = std::make_shared<Error>(GroupMgrError::CreateGroupFailed, errorInfo.str());
+                _onInsertNode(std::move(error));
+                return;
+            }
+            // insert the nodeInfo to the backend
+            m_remoteStorage->asyncSetNodeInfo(_chainID, _groupID, _nodeInfo,
+                [this, groupInfo, _nodeInfo, _onInsertNode](Error::Ptr&& _error) {
+                    Error::Ptr error = nullptr;
+                    std::stringstream errorInfo;
+                    if (_error)
+                    {
+                        GROUP_LOG(WARNING)
+                            << LOG_DESC("asyncInsertNodeInfo failed")
+                            << LOG_KV("code", _error->errorCode())
+                            << LOG_KV("msg", _error->errorMessage()) << printNodeInfo(_nodeInfo);
+                        errorInfo << LOG_DESC("update the node info to the storage error")
+                                  << LOG_KV("code", _error->errorCode())
+                                  << LOG_KV("msg", _error->errorMessage());
+                        error = std::make_shared<Error>(
+                            GroupMgrError::CreateGroupFailed, errorInfo.str());
+                        _onInsertNode(std::move(error));
+                        revertGroupNodeCache(groupInfo->chainID(), groupInfo->groupID(), _nodeInfo);
+                        return;
+                    }
+                    // TODO: asyncNotifyGroupInfo with callback
+                    asyncNotifyGroupInfo(groupInfo, nullptr);
+                    _onInsertNode(nullptr);
+                });
+        });
+}
+
+void GroupInfoStorage::asyncUpdateNodeInfo(std::string const& _chainID, std::string const& _groupID,
+    ChainNodeInfo::Ptr _nodeInfo, std::function<void(Error::Ptr&&)> _onUpdate)
+{
+    asyncGetNodeInfo(_chainID, _groupID, _nodeInfo->nodeName(),
+        [this, _chainID, _groupID, _nodeInfo, _onUpdate](
+            Error::Ptr&& _error, ChainNodeInfo::Ptr _nodeInfoRet) {
+            if (!_nodeInfoRet)
+            {
+                GROUP_LOG(WARNING)
+                    << LOG_DESC("asyncUpdateNodeInfo failed for the node doesn't exist")
+                    << LOG_KV("code", _error ? _error->errorCode() : 0)
+                    << LOG_KV("msg", _error ? _error->errorMessage() : "");
+                _onUpdate(std::make_shared<Error>(GroupMgrError::NodeNotExists, "NodeNotExists"));
+                return;
+            }
+            m_remoteStorage->asyncSetNodeInfo(_chainID, _groupID, _nodeInfo,
+                [this, _chainID, _groupID, _nodeInfo, _onUpdate](Error::Ptr&& _error) {
+                    if (_error)
+                    {
+                        GROUP_LOG(ERROR)
+                            << LOG_DESC(
+                                   "asyncUpdateNodeInfo failed for update the node info failed")
+                            << LOG_KV("code", _error->errorCode())
+                            << LOG_KV("msg", _error->errorMessage()) << printNodeInfo(_nodeInfo);
+                        _onUpdate(std::move(_error));
+                        return;
+                    }
+                    // update the cached nodeInfo
+                    auto groupInfo = getGroupInfoFromCache(_chainID, _groupID);
+                    groupInfo->updateNodeInfo(_nodeInfo);
+                    // TODO: asyncNotifyGroupInfo with callback
+                    asyncNotifyGroupInfo(groupInfo, nullptr);
+                    _onUpdate(nullptr);
+                });
+        });
+}
+
+void GroupInfoStorage::asyncNotifyGroupInfo(
+    GroupInfo::Ptr _groupInfo, std::function<void(Error::Ptr&&)> _onNotify)
+{
+    asyncNotifyGroupInfo<bcostars::RpcServicePrx, bcostars::RpcServiceClient>(
+        _groupInfo, c_RPCSerivceObjName, x_rpcServiceInfos, m_rpcServiceInfos);
+    asyncNotifyGroupInfo<bcostars::GatewayServicePrx, bcostars::GatewayServiceClient>(
+        _groupInfo, c_GatewayServiceObjName, x_gatewayServiceInfos, m_gatewayServiceInfos);
+    // TODO: notify failed case
+    if (_onNotify)
+    {
+        _onNotify(nullptr);
+    }
+}
+
+std::string GroupInfoStorage::endPointToString(
+    std::string const& _objName, TC_Endpoint const& _endPoint)
+{
+    return _objName + "@tcp -h " + _endPoint.getHost() + " -p " +
+           boost::lexical_cast<std::string>(_endPoint.getPort());
+}
