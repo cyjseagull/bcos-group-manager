@@ -53,15 +53,20 @@ public:
         std::string const& _nodeName, std::function<void(Error::Ptr&&)> _callback) override;
     void asyncStopNode(std::string const& _chainID, std::string const& _groupID,
         std::string const& _nodeName, std::function<void(Error::Ptr&&)> _callback) override;
+
     void asyncGetChainList(
         std::function<void(Error::Ptr&&, std::set<std::string>&&)> _onGetChainList) override;
-    void asyncGetGroupList(std::string _chainID,
+    void asyncGetGroupList(std::string const& _chainID,
         std::function<void(Error::Ptr&&, std::set<std::string>&&)> _onGetGroupList) override;
 
-    void asyncGetGroupInfo(std::string _chainID, std::string _groupID,
+    void asyncGetGroupInfo(std::string const& _chainID, std::string const& _groupID,
         std::function<void(Error::Ptr&&, GroupInfo::Ptr&&)> _onGetGroupInfo) override;
-    void asyncGetNodeInfo(std::string _chainID, std::string _groupID, std::string _nodeName,
+    void asyncGetNodeInfo(std::string const& _chainID, std::string const& _groupID,
+        std::string const& _nodeName,
         std::function<void(Error::Ptr&&, ChainNodeInfo::Ptr&&)> _onGetNodeInfo) override;
+
+    void asyncGetGroupInfos(std::string const& _chainID, std::vector<std::string> const& _groupList,
+        std::function<void(Error::Ptr&&, std::vector<GroupInfo::Ptr>&&)> _onGetNodeInfos) override;
 
 protected:
     virtual void generateNodeInfos(

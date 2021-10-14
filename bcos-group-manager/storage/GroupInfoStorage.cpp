@@ -22,8 +22,8 @@
 #include "Common.h"
 #include <bcos-framework/interfaces/rpc/RPCInterface.h>
 #include <bcos-framework/interfaces/storage/Common.h>
-#include <bcos-tars-protocol/GatewayServiceClient.h>
-#include <bcos-tars-protocol/RpcServiceClient.h>
+#include <bcos-tars-protocol/client/GatewayServiceClient.h>
+#include <bcos-tars-protocol/client/RpcServiceClient.h>
 #include <boost/lexical_cast.hpp>
 #include <chrono>
 #include <future>

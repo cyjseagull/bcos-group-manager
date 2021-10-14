@@ -434,8 +434,7 @@ std::vector<ChainNodeInfo::Ptr> RemoteStorage::decodeNodeInfos(
         NodeType type = (NodeType)boost::lexical_cast<int32_t>(entry->getField(GROUP_NODE_TYPE));
         nodeInfo->setNodeType(type);
         // set privateKey
-        auto privateKey = entry->getField(GROUP_NODE_PRIVATE_KEY_INFO);
-        nodeInfo->setPrivateKey(bytes(privateKey.begin(), privateKey.end()));
+        nodeInfo->setPrivateKey(std::string(entry->getField(GROUP_NODE_PRIVATE_KEY_INFO)));
         // set deployInfo
         auto deployInfoStr = entry->getField(GROUP_NODE_DEPLOY_INFO);
         boost::iostreams::stream<boost::iostreams::array_source> inputStream(

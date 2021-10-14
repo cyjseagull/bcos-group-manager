@@ -20,6 +20,7 @@
  */
 #include "GroupManagerImpl.h"
 #include "controller/Common.h"
+#include <future>
 
 using namespace bcos;
 using namespace bcos::group;
@@ -363,7 +364,7 @@ void GroupManagerImpl::asyncGetChainList(
     }
 }
 
-void GroupManagerImpl::asyncGetGroupList(std::string _chainID,
+void GroupManagerImpl::asyncGetGroupList(std::string const& _chainID,
     std::function<void(Error::Ptr&&, std::set<std::string>&&)> _onGetGroupList)
 {
     auto chainInfo = m_storage->getChainInfo(_chainID);
@@ -374,14 +375,15 @@ void GroupManagerImpl::asyncGetGroupList(std::string _chainID,
     }
 }
 
-void GroupManagerImpl::asyncGetGroupInfo(std::string _chainID, std::string _groupID,
+void GroupManagerImpl::asyncGetGroupInfo(std::string const& _chainID, std::string const& _groupID,
     std::function<void(Error::Ptr&&, GroupInfo::Ptr&&)> _onGetGroupInfo)
 {
     m_storage->asyncGetGroupInfo(_chainID, _groupID, _onGetGroupInfo);
 }
 
-void GroupManagerImpl::asyncGetNodeInfo(std::string _chainID, std::string _groupID,
-    std::string _nodeName, std::function<void(Error::Ptr&&, ChainNodeInfo::Ptr&&)> _onGetNodeInfo)
+void GroupManagerImpl::asyncGetNodeInfo(std::string const& _chainID, std::string const& _groupID,
+    std::string const& _nodeName,
+    std::function<void(Error::Ptr&&, ChainNodeInfo::Ptr&&)> _onGetNodeInfo)
 {
     return m_storage->asyncGetNodeInfo(_chainID, _groupID, _nodeName, _onGetNodeInfo);
 }
@@ -539,4 +541,48 @@ void GroupManagerImpl::recoverNode(std::string const& _chainID, std::string cons
                 m_storage->asyncUpdateNodeInfo(_chainID, _groupID, _nodeInfo, _callback);
             });
         });
+}
+
+// Note: this interface is called only when RPC/Gateway init
+void GroupManagerImpl::asyncGetGroupInfos(std::string const& _chainID,
+    std::vector<std::string> const& _groupList,
+    std::function<void(Error::Ptr&&, std::vector<GroupInfo::Ptr>&&)> _onGetNodeInfos)
+{
+    auto groupInfoList = std::make_shared<std::vector<GroupInfo::Ptr>>();
+    groupInfoList->resize(_groupList.size());
+
+    std::vector<std::shared_ptr<std::promise<Error::Ptr>>> retList;
+    std::vector<std::future<Error::Ptr>> futureList;
+    size_t i = 0;
+    for (auto const& groupID : _groupList)
+    {
+        auto ret = std::make_shared<std::promise<Error::Ptr>>();
+        retList.emplace_back(ret);
+        futureList.emplace_back(ret->get_future());
+        asyncGetGroupInfo(_chainID, groupID,
+            [ret, groupInfoList, i](Error::Ptr&& _error, GroupInfo::Ptr _groupInfo) {
+                if (_error)
+                {
+                    ret->set_value(std::move(_error));
+                    return;
+                }
+                (*groupInfoList)[i] = _groupInfo;
+                ret->set_value(nullptr);
+            });
+        i++;
+    }
+    if (!_onGetNodeInfos)
+    {
+        return;
+    }
+    for (auto& ret : futureList)
+    {
+        auto error = ret.get();
+        if (error)
+        {
+            _onGetNodeInfos(std::move(error), std::move(*groupInfoList));
+            return;
+        }
+    }
+    _onGetNodeInfos(nullptr, std::move(*groupInfoList));
 }
