@@ -33,7 +33,7 @@ class GroupMgrConfig
 {
 public:
     using Ptr = std::shared_ptr<GroupMgrConfig>;
-    GroupMgrConfig(std::shared_ptr<AdminRegProxy> _nodeManager,
+    GroupMgrConfig(tars::TC_AutoPtr<AdminRegProxy> _nodeManager,
         ChainInfoFactory::Ptr _chainInfoFactory, GroupInfoFactory::Ptr _groupInfoFactory,
         ChainNodeInfoFactory::Ptr _nodeInfoFactory, std::string const& _userName)
       : m_nodeManager(_nodeManager),
@@ -43,7 +43,7 @@ public:
         m_userName(_userName)
     {}
 
-    std::shared_ptr<AdminRegProxy> nodeManager() { return m_nodeManager; }
+    tars::TC_AutoPtr<AdminRegProxy> nodeManager() { return m_nodeManager; }
 
     ChainInfoFactory::Ptr chainInfoFactory() { return m_chainInfoFactory; }
     GroupInfoFactory::Ptr groupInfoFactory() { return m_groupInfoFactory; }
@@ -53,7 +53,7 @@ public:
 
 private:
     // tars admin registry client, used to deploy/start/stop the node
-    std::shared_ptr<tars::AdminRegProxy> m_nodeManager;
+    tars::TC_AutoPtr<tars::AdminRegProxy> m_nodeManager;
 
     ChainInfoFactory::Ptr m_chainInfoFactory;
     GroupInfoFactory::Ptr m_groupInfoFactory;

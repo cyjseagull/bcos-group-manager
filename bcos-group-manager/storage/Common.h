@@ -61,8 +61,8 @@ const std::string GROUP_NODE_NAME = "name";
 const std::string GROUP_NODE_TYPE = "type";
 const std::string GROUP_NODE_DEPLOY_INFO = "deploy_info";
 const std::string GROUP_NODE_INI_CONFIG = "config";
-// Note TODO: this maybe unsafe, try to make it safer
-const std::string GROUP_NODE_PRIVATE_KEY_INFO = "priv";
+// Note: doesn't storage the privateKey info for security consideration
+const std::string GROUP_NODE_NODEID_INFO = "nodeid";
 const std::string GROUP_NODE_STATUS = "status";
 
 inline std::string getGroupTableName(std::string const& _chainID, std::string const& _groupID)

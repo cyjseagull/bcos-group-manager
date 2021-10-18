@@ -28,7 +28,6 @@ using namespace bcos::group;
 void GroupManagerImpl::generateNodeInfos(
     std::map<std::string, ChainNodeInfo::Ptr>& _nodeInfos, GroupInfo::Ptr _groupInfo)
 {
-    //_groupInfo
     for (auto const& it : _groupInfo->nodeInfos())
     {
         auto const& nodeInfo = it.second;
@@ -368,11 +367,13 @@ void GroupManagerImpl::asyncGetGroupList(std::string const& _chainID,
     std::function<void(Error::Ptr&&, std::set<std::string>&&)> _onGetGroupList)
 {
     auto chainInfo = m_storage->getChainInfo(_chainID);
-    auto groupList = chainInfo->groupList();
-    if (_onGetGroupList)
+    if (!chainInfo)
     {
-        _onGetGroupList(nullptr, std::move(groupList));
+        _onGetGroupList(nullptr, std::set<std::string>());
+        return;
     }
+    auto groupList = chainInfo->groupList();
+    _onGetGroupList(nullptr, std::move(groupList));
 }
 
 void GroupManagerImpl::asyncGetGroupInfo(std::string const& _chainID, std::string const& _groupID,

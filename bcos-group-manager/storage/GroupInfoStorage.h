@@ -68,17 +68,17 @@ public:
     virtual void asyncInsertNodeInfo(std::string const& _chainID, std::string const& _groupID,
         ChainNodeInfo::Ptr _nodeInfo, std::function<void(Error::Ptr&&)> _onInsertNode);
 
-#if 0
-    // TODO: for services manager
-    virtual void asyncRemoveService(ServiceType _type, std::string const& _serviceName,
-        std::function<void(Error::Ptr&&)> _onRemove);
-
-    virtual void insertService(ServiceType _type, std::string const& _serviceName,
-        std::function<void(Error::Ptr&&)> _onInsert);
-
-    virtual void asyncGetServiceList(ServiceType _type, std::string const& _chainID,
-        std::function<void(Error::Ptr&&)> _onServiceList);
-#endif
+    virtual void setRpcServiceInfo(std::map<std::string, std::string> const& _rpcServiceInfos)
+    {
+        WriteGuard l(x_rpcServiceInfos);
+        m_rpcServiceInfos = _rpcServiceInfos;
+    }
+    virtual void setGatewayServiceInfo(
+        std::map<std::string, std::string> const& _gatewayServiceInfos)
+    {
+        WriteGuard l(x_gatewayServiceInfos);
+        m_gatewayServiceInfos = _gatewayServiceInfos;
+    }
 
 protected:
     // try to create the chain table

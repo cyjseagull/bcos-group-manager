@@ -239,7 +239,7 @@ void RemoteStorage::asyncCreateGroupInfo(
 {
     auto tableName = getGroupTableName(_groupInfo->chainID(), _groupInfo->groupID());
     auto groupTableFields = GROUP_NODE_NAME + FIELD_SPLITTER + GROUP_NODE_TYPE + FIELD_SPLITTER +
-                            GROUP_NODE_DEPLOY_INFO + FIELD_SPLITTER + GROUP_NODE_PRIVATE_KEY_INFO +
+                            GROUP_NODE_DEPLOY_INFO + FIELD_SPLITTER + GROUP_NODE_NODEID_INFO +
                             FIELD_SPLITTER + GROUP_NODE_INI_CONFIG + FIELD_SPLITTER +
                             GROUP_NODE_STATUS;
     m_storage->asyncCreateTable(tableName, groupTableFields,
@@ -433,8 +433,8 @@ std::vector<ChainNodeInfo::Ptr> RemoteStorage::decodeNodeInfos(
         // set nodeType
         NodeType type = (NodeType)boost::lexical_cast<int32_t>(entry->getField(GROUP_NODE_TYPE));
         nodeInfo->setNodeType(type);
-        // set privateKey
-        nodeInfo->setPrivateKey(std::string(entry->getField(GROUP_NODE_PRIVATE_KEY_INFO)));
+        // set nodeID
+        nodeInfo->setNodeID(std::string(entry->getField(GROUP_NODE_NODEID_INFO)));
         // set deployInfo
         auto deployInfoStr = entry->getField(GROUP_NODE_DEPLOY_INFO);
         boost::iostreams::stream<boost::iostreams::array_source> inputStream(
@@ -545,6 +545,6 @@ void RemoteStorage::setNodeInfoEntry(bcos::storage::Entry& _entry, ChainNodeInfo
     auto deployInfo = encodeDeployInfo(_nodeInfo->deployInfo());
     _entry.importFields(
         {_nodeInfo->nodeName(), boost::lexical_cast<std::string>((uint32_t)_nodeInfo->nodeType()),
-            deployInfo, _nodeInfo->privateKey(), _nodeInfo->iniConfig(),
+            deployInfo, _nodeInfo->nodeID(), _nodeInfo->iniConfig(),
             boost::lexical_cast<std::string>((int32_t)_nodeInfo->status())});
 }
