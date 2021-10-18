@@ -26,4 +26,4 @@ add_executable(${TEST_BINARY_NAME} ${SOURCES})
 target_include_directories(${TEST_BINARY_NAME} PRIVATE . ${CMAKE_SOURCE_DIR} ${BCOS_TEST_DIR})
 
 find_package(Boost CONFIG QUIET REQUIRED unit_test_framework)
-target_link_libraries(${TEST_BINARY_NAME} bcos-framework::utilities Boost::unit_test_framework)
+target_link_libraries(${TEST_BINARY_NAME} ${BCOS_GROUP_MANAGER_TARGET} bcos-framework::utilities Boost::unit_test_framework)

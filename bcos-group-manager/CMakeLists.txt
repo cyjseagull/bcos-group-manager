@@ -7,4 +7,4 @@ aux_source_directory(./controller SRC_LIST)
 
 add_library(${BCOS_GROUP_MANAGER_TARGET} ${SRC_LIST} ${HEADERS})
 target_compile_options(${BCOS_GROUP_MANAGER_TARGET} PRIVATE -Wno-error -Wno-unused-variable)
-target_link_libraries(${BCOS_GROUP_MANAGER_TARGET} PUBLIC bcos-framework::storage bcos-tars-protocol::protocol-tars tarscpp::tarsservant)
+target_link_libraries(${BCOS_GROUP_MANAGER_TARGET} PUBLIC bcos-framework::storage bcos-tars-protocol::protocol-tars tarscpp::tarsservant jsoncpp_lib_static)
